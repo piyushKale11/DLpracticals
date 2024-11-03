@@ -1,0 +1,50 @@
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from tensorflow.keras import models,layers
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
+import tensorflow_datasets as tfds
+
+(train_ds,train_labels),(test_ds,test_labels)=tfds.load(
+    "tf_flowers",
+    split=["train[:70%]","train[:30%]"],
+    batch_size=-1,
+    as_supervised=True)
+
+train_ds=tf.image.resize(train_ds,(150,150))
+test_ds=tf.image.resize(test_ds,(150,150))
+
+train_labels=to_categorical(train_labels,num_classes=5)
+test_labels=to_categorical(test_labels,num_classes=5)
+
+base_model=VGG16(weights="imagenet",include_top=False,input_shape=(150,150,3))
+base_model.summary()
+base_model.trainable=False
+
+train_ds=preprocess_input(train_ds)
+test_ds=preprocess_input(test_ds)
+
+model=models.Sequential([
+    base_model,
+    layers.Flatten(),
+    layers.Dense(50,activation="relu"),
+    layers.Dense(20,activation="relu"),
+    layers.Dense(5,activation="softmax")])
+
+model.compile(optimizer="adam",
+              loss="categorical_crossentropy",
+              metrics=["accuracy"])
+
+history=model.fit(train_ds,train_labels,validation_split=0.2,epochs=5,batch_size=32)
+
+loss,acc=model.evaluate(test_ds,test_labels)
+print(f"Loss:{loss}")
+print(f"Accuracy:{acc}")
+
+plt.plot(history.history["accuracy"])
+plt.title("Model Accuracy")
+plt.ylabel("Accuracy")
+plt.xlabel("Epochs")
+plt.legend(["Train"],loc="upper right")
+plt.show()

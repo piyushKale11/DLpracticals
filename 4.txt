@@ -1,0 +1,59 @@
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from tensorflow.keras import models,layers
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+import numpy as np 
+import random
+
+mnist = tf.keras.datasets.mnist
+(x_train,y_train),(x_test,y_test)=mnist.load_data()
+
+x_train=x_train[y_train==0]
+
+x_train=x_train.reshape(x_train.shape[0],-1)
+x_test=x_test.reshape(x_test.shape[0],-1)
+x_train=x_train.astype("float32")/255
+x_test=x_test.astype("float32")/255
+
+x_train,x_val=train_test_split(x_train,test_size=0.2,random_state=42)
+
+latent_dim=64 #dimension small kele to 64
+
+''' ata autoencoder banau'''
+    
+encoder_input=layers.Input(shape=(784,)) 
+
+encoded=layers.Dense(128,activation="relu")(encoder_input)
+encoded=layers.Dense(64,activation="relu")(encoded)
+encoded=layers.Dense(latent_dim,activation="relu")(encoded)
+
+decoded=layers.Dense(64,activation="relu")(encoded)
+decoded=layers.Dense(128,activation="relu")(decoded)
+decoder_output=layers.Dense(784,activation="sigmoid")(decoded)
+
+autoencoder=models.Model(encoder_input,decoder_output)
+
+autoencoder.compile(optimizer="adam",loss="mse")
+
+history=autoencoder.fit(x_train,x_train,validation_data=(x_val,x_val),epochs=3,batch_size=256)
+
+
+plt.plot(history.history["loss"])
+plt.plot(history.history["val_loss"])
+plt.title("Model loss")
+plt.ylabel("Loss")
+plt.xlabel("Epochs")
+plt.legend(["Train","Validation"],loc="upper right")
+plt.show()
+
+
+x_test_reconstructed=autoencoder.predict(x_test)
+
+mse=np.mean(np.square(x_test-x_test_reconstructed),axis=-1)
+
+threshold=np.percentile(mse,95)
+
+anomalies=mse>threshold
+
+print("No. of anomalies Detected:",np.sum(anomalies))
